@@ -30,24 +30,25 @@
             <!-- Dijkstra Controls -->
             <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
                 <h2 class="text-lg font-semibold text-blue-900 mb-3">Fastest Route (Dijkstra)</h2>
+                <p class="text-xs text-blue-700 mb-3">Initializes all distances to &infin; and animates step-by-step edge relaxation.</p>
                 
                 <div class="flex flex-col gap-3 mb-4">
                     <div>
                         <label class="block text-xs font-semibold text-blue-800 mb-1">Start Location</label>
-                        <select id="start-node" class="w-full p-2 border border-blue-200 rounded focus:ring focus:ring-blue-200 text-sm">
+                        <select id="start-node" class="w-full p-2 border border-blue-200 rounded focus:ring focus:ring-blue-200 text-sm bg-white">
                             <!-- Populated via JS -->
                         </select>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-blue-800 mb-1">End Location</label>
-                        <select id="end-node" class="w-full p-2 border border-blue-200 rounded focus:ring focus:ring-blue-200 text-sm">
+                        <select id="end-node" class="w-full p-2 border border-blue-200 rounded focus:ring focus:ring-blue-200 text-sm bg-white">
                             <!-- Populated via JS -->
                         </select>
                     </div>
                 </div>
                 
-                <button id="btn-shortest-path" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors">
-                    Find Shortest Path
+                <button id="btn-shortest-path" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors shadow-sm">
+                    Animate Dijkstra (Step-by-Step)
                 </button>
             </div>
 
@@ -58,13 +59,13 @@
                 
                 <div class="mb-4">
                     <label class="block text-xs font-semibold text-green-800 mb-1">Algorithm</label>
-                    <select id="mst-algo" class="w-full p-2 border border-green-200 rounded focus:ring focus:ring-green-200 text-sm">
+                    <select id="mst-algo" class="w-full p-2 border border-green-200 rounded focus:ring focus:ring-green-200 text-sm bg-white">
                         <option value="kruskal">Kruskal's Algorithm</option>
                         <option value="prim">Prim's Algorithm</option>
                     </select>
                 </div>
 
-                <button id="btn-mst" class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                <button id="btn-mst" class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors shadow-sm">
                     Establish Network
                 </button>
             </div>
@@ -76,11 +77,22 @@
                 </button>
             </div>
 
+            <!-- Live Distance Array Table (Collapsible) -->
+            <div id="distance-table-container" class="border border-slate-200 rounded-xl p-3 bg-slate-50 text-xs hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="font-bold text-slate-700">Distance Array dist[v]</span>
+                    <span id="algo-badge" class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-medium text-[10px]">Dijkstra</span>
+                </div>
+                <div class="grid grid-cols-2 gap-1.5 max-h-36 overflow-y-auto pr-1" id="distance-table-body">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
             <!-- Results Display -->
-            <div id="result-box" class="mt-4 p-4 bg-slate-900 text-white rounded-xl shadow-inner hidden">
-                <h3 class="text-sm font-semibold text-slate-400 mb-1" id="result-title">Result</h3>
+            <div id="result-box" class="mt-2 p-4 bg-slate-900 text-white rounded-xl shadow-inner hidden">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1" id="result-title">Result</h3>
                 <p class="text-2xl font-bold" id="result-value">0.0 km</p>
-                <p class="text-xs text-slate-300 mt-2" id="result-details"></p>
+                <p class="text-xs text-slate-300 mt-2 leading-relaxed" id="result-details"></p>
             </div>
         </div>
     </aside>
@@ -93,7 +105,10 @@
         <div class="absolute bottom-6 right-6 bg-white/90 backdrop-blur px-4 py-3 rounded-lg shadow-lg text-sm border border-slate-200 pointer-events-none">
             <h4 class="font-semibold mb-2 text-slate-700">Legend</h4>
             <div class="flex items-center gap-2 mb-1">
-                <div class="w-6 h-1 bg-blue-300"></div> <span>Default Path</span>
+                <div class="w-6 h-1 bg-blue-300"></div> <span>Default Road</span>
+            </div>
+            <div class="flex items-center gap-2 mb-1">
+                <div class="w-6 h-1.5 bg-amber-500"></div> <span>Evaluating / Relaxing</span>
             </div>
             <div class="flex items-center gap-2 mb-1">
                 <div class="w-6 h-1.5 bg-red-500"></div> <span>Shortest Path</span>
@@ -110,15 +125,20 @@
         const DEFAULT_EDGE_WIDTH = 2;
         const HIGHLIGHT_PATH_COLOR = '#ef4444'; // Tailwind red-500
         const HIGHLIGHT_MST_COLOR = '#22c55e'; // Tailwind green-500
+        const RELAXING_EDGE_COLOR = '#f59e0b'; // Tailwind amber-500
         const HIGHLIGHT_WIDTH = 5;
 
-        // Node highlight styles for animation
+        // Node highlight styles
         const DEFAULT_NODE_BG = '#f8fafc';
         const DEFAULT_NODE_BORDER = '#cbd5e1';
         const HIGHLIGHT_NODE_BG = '#dcfce7'; // Tailwind green-100
         const HIGHLIGHT_NODE_BORDER = '#22c55e'; // Tailwind green-500
+        const ACTIVE_NODE_BG = '#fef3c7'; // Tailwind amber-100
+        const ACTIVE_NODE_BORDER = '#f59e0b'; // Tailwind amber-500
+        const VISITED_NODE_BG = '#dbeafe'; // Tailwind blue-100
+        const VISITED_NODE_BORDER = '#3b82f6'; // Tailwind blue-500
 
-        // Raw Graph Data from user
+        // Raw Graph Data
         const rawNodes = [
             { id: 0, label: "Rupsha Ferry Ghat" },
             { id: 1, label: "Khulna Court" },
@@ -134,7 +154,6 @@
             { id: 11, label: "Shiromoni" }
         ];
 
-        // Ensure edges have unique string IDs so vis can update them easily
         const rawEdges = [
             { id: 'e1', from: 0, to: 1, weight: 2.5, label: "2.5 km" },
             { id: 'e2', from: 1, to: 2, weight: 0.8, label: "0.8 km" },
@@ -160,7 +179,7 @@
             shape: 'dot',
             size: 16,
             font: { size: 14, face: 'Inter', bold: true, color: '#1e293b' },
-            color: { background: '#f8fafc', border: '#cbd5e1', borderWidth: 2 }
+            color: { background: DEFAULT_NODE_BG, border: DEFAULT_NODE_BORDER, borderWidth: 2 }
         })));
 
         const edges = new vis.DataSet(rawEdges.map(e => ({
@@ -171,9 +190,8 @@
         })));
 
         let network = null;
-        let animationInterval = null; // Store interval for MST animation
+        let animationInterval = null;
 
-        // Populate dropdowns and setup network on load
         window.onload = function() {
             const startSelect = document.getElementById('start-node');
             const endSelect = document.getElementById('end-node');
@@ -185,8 +203,7 @@
                 endSelect.add(option2);
             });
             
-            // Set default end node to Shiromoni for convenience
-            endSelect.value = "11";
+            endSelect.value = "11"; // Default to Shiromoni
 
             const container = document.getElementById('network-container');
             const data = { nodes: nodes, edges: edges };
@@ -205,41 +222,37 @@
             
             network = new vis.Network(container, data, options);
             
-            // Bind button events
             document.getElementById('btn-reset').addEventListener('click', resetGraph);
-            document.getElementById('btn-shortest-path').addEventListener('click', runDijkstra);
+            document.getElementById('btn-shortest-path').addEventListener('click', startDijkstraAnimation);
             document.getElementById('btn-mst').addEventListener('click', startMSTAnimation);
         };
 
         function resetGraph() {
-            // Stop any ongoing animation
             if (animationInterval) {
                 clearInterval(animationInterval);
                 animationInterval = null;
             }
 
-            // Re-enable buttons if they were disabled
             document.getElementById('btn-shortest-path').disabled = false;
             document.getElementById('btn-mst').disabled = false;
             document.getElementById('btn-reset').disabled = false;
 
             // Reset edge styles
-            const edgeUpdates = rawEdges.map(e => ({
+            edges.update(rawEdges.map(e => ({
                 id: e.id, 
                 color: { color: DEFAULT_EDGE_COLOR }, 
                 width: DEFAULT_EDGE_WIDTH
-            }));
-            edges.update(edgeUpdates);
+            })));
             
-            // Reset node styles
-            const nodeUpdates = rawNodes.map(n => ({
+            // Reset node styles & clear distance tags
+            nodes.update(rawNodes.map(n => ({
                 id: n.id,
+                label: n.label,
                 color: { background: DEFAULT_NODE_BG, border: DEFAULT_NODE_BORDER, borderWidth: 2 }
-            }));
-            nodes.update(nodeUpdates);
+            })));
             
-            // Hide result box
             document.getElementById('result-box').classList.add('hidden');
+            document.getElementById('distance-table-container').classList.add('hidden');
         }
 
         function showResult(title, distanceStr, details) {
@@ -249,7 +262,21 @@
             document.getElementById('result-box').classList.remove('hidden');
         }
 
-        function runDijkstra() {
+        function updateDistanceTable(distances) {
+            const tableBody = document.getElementById('distance-table-body');
+            tableBody.innerHTML = '';
+            rawNodes.forEach(node => {
+                const distVal = distances[node.id] === Infinity ? '∞' : `${distances[node.id].toFixed(1)} km`;
+                const isInf = distances[node.id] === Infinity;
+                const row = document.createElement('div');
+                row.className = `flex justify-between items-center p-1 rounded ${isInf ? 'text-slate-400 bg-white' : 'text-blue-900 bg-blue-100/70 font-semibold'}`;
+                row.innerHTML = `<span class="truncate pr-1">${node.label}</span><span>${distVal}</span>`;
+                tableBody.appendChild(row);
+            });
+        }
+
+        // ================= DIJKSTRA STEP-BY-STEP ANIMATION =================
+        function startDijkstraAnimation() {
             resetGraph();
             const startId = parseInt(document.getElementById('start-node').value);
             const endId = parseInt(document.getElementById('end-node').value);
@@ -259,11 +286,14 @@
                 return;
             }
 
-            // Initialization
+            // Reveal distance table
+            document.getElementById('distance-table-container').classList.remove('hidden');
+
+            // 1. Initial State: All distances = Infinity, start = 0
             let distances = {};
             let previous = {};
             let unvisited = new Set();
-            
+
             rawNodes.forEach(node => {
                 distances[node.id] = Infinity;
                 previous[node.id] = null;
@@ -271,64 +301,164 @@
             });
             distances[startId] = 0;
 
-            // Compute shortest path
-            while(unvisited.size > 0) {
-                // Find node with minimum distance in unvisited
+            // Show initial ∞ on all nodes
+            nodes.update(rawNodes.map(n => ({
+                id: n.id,
+                label: n.id === startId ? `${n.label}\n[0.0 km]` : `${n.label}\n[∞]`
+            })));
+            updateDistanceTable(distances);
+
+            // Pre-calculate visual animation steps
+            let steps = [];
+            let unvisitedCopy = new Set(unvisited);
+            let distCopy = { ...distances };
+            let prevCopy = { ...previous };
+
+            while (unvisitedCopy.size > 0) {
                 let minNode = null;
-                for (let nodeId of unvisited) {
-                    if (minNode === null || distances[nodeId] < distances[minNode]) {
+                for (let nodeId of unvisitedCopy) {
+                    if (minNode === null || distCopy[nodeId] < distCopy[minNode]) {
                         minNode = nodeId;
                     }
                 }
 
-                if (distances[minNode] === Infinity || minNode === endId) break;
-                unvisited.delete(minNode);
+                if (distCopy[minNode] === Infinity) break;
 
-                // Check neighbors
+                steps.push({
+                    type: 'visit_node',
+                    node: minNode,
+                    dist: distCopy[minNode],
+                    distancesSnapshot: { ...distCopy }
+                });
+
+                if (minNode === endId) break;
+                unvisitedCopy.delete(minNode);
+
                 let neighbors = rawEdges.filter(e => e.from === minNode || e.to === minNode);
                 for (let edge of neighbors) {
                     let neighborId = edge.from === minNode ? edge.to : edge.from;
-                    
-                    if (unvisited.has(neighborId)) {
-                        let alt = distances[minNode] + edge.weight;
-                        if (alt < distances[neighborId]) {
-                            distances[neighborId] = alt;
-                            previous[neighborId] = { node: minNode, edgeId: edge.id };
+                    if (unvisitedCopy.has(neighborId)) {
+                        let alt = parseFloat((distCopy[minNode] + edge.weight).toFixed(2));
+                        let didRelax = alt < distCopy[neighborId];
+                        
+                        if (didRelax) {
+                            distCopy[neighborId] = alt;
+                            prevCopy[neighborId] = { node: minNode, edgeId: edge.id };
                         }
+
+                        steps.push({
+                            type: 'relax_edge',
+                            u: minNode,
+                            v: neighborId,
+                            edge: edge,
+                            oldDist: didRelax ? (alt === distCopy[neighborId] ? Infinity : distCopy[neighborId]) : distCopy[neighborId],
+                            newDist: alt,
+                            relaxed: didRelax,
+                            distancesSnapshot: { ...distCopy }
+                        });
                     }
                 }
             }
 
-            // Reconstruct path
+            // Extract final path
             let pathEdges = [];
-            let currentNode = endId;
-            let pathFound = false;
+            let curr = endId;
+            while (prevCopy[curr]) {
+                pathEdges.push(prevCopy[curr].edgeId);
+                curr = prevCopy[curr].node;
+            }
 
-            while (previous[currentNode]) {
-                pathEdges.push(previous[currentNode].edgeId);
-                currentNode = previous[currentNode].node;
-                if (currentNode === startId) {
-                    pathFound = true;
+            // Disable buttons during animation
+            document.getElementById('btn-shortest-path').disabled = true;
+            document.getElementById('btn-mst').disabled = true;
+
+            showResult(
+                "Dijkstra's Algorithm",
+                "0.0 km",
+                `Initialized: All nodes set to distance ∞. Source [${rawNodes.find(n => n.id === startId).label}] set to 0.0 km.`
+            );
+
+            let stepIdx = 0;
+            animationInterval = setInterval(() => {
+                if (stepIdx >= steps.length) {
+                    clearInterval(animationInterval);
+                    animationInterval = null;
+
+                    // Finalize: Highlight shortest path in RED
+                    edges.update(pathEdges.map(id => ({
+                        id: id,
+                        color: { color: HIGHLIGHT_PATH_COLOR },
+                        width: HIGHLIGHT_WIDTH
+                    })));
+
+                    nodes.update([
+                        { id: startId, color: { background: '#fee2e2', border: HIGHLIGHT_PATH_COLOR, borderWidth: 3 } },
+                        { id: endId, color: { background: '#fee2e2', border: HIGHLIGHT_PATH_COLOR, borderWidth: 3 } }
+                    ]);
+
+                    document.getElementById('btn-shortest-path').disabled = false;
+                    document.getElementById('btn-mst').disabled = false;
+
+                    let totalDist = distCopy[endId] !== Infinity ? `${distCopy[endId].toFixed(1)} km` : "--";
+                    showResult(
+                        "Dijkstra's Shortest Path",
+                        totalDist,
+                        `Optimal path reached! Total distance from ${rawNodes.find(n => n.id === startId).label} to ${rawNodes.find(n => n.id === endId).label} is ${totalDist}.`
+                    );
+                    return;
                 }
-            }
 
-            if (pathFound) {
-                // Highlight edges
-                const updates = pathEdges.map(id => ({
-                    id: id,
-                    color: { color: HIGHLIGHT_PATH_COLOR },
-                    width: HIGHLIGHT_WIDTH
-                }));
-                edges.update(updates);
+                let step = steps[stepIdx];
+                updateDistanceTable(step.distancesSnapshot);
 
-                let totalDist = distances[endId].toFixed(1);
-                showResult("Dijkstra's Shortest Path", `${totalDist} km`, "Optimal route highlighted in red.");
-            } else {
-                showResult("Path Error", "--", "No valid path found between these nodes.");
-            }
+                if (step.type === 'visit_node') {
+                    let nName = rawNodes.find(n => n.id === step.node).label;
+                    nodes.update({
+                        id: step.node,
+                        label: `${nName}\n[${step.dist.toFixed(1)} km]`,
+                        color: { background: ACTIVE_NODE_BG, border: ACTIVE_NODE_BORDER, borderWidth: 3 }
+                    });
+                    showResult(
+                        "Dijkstra: Node Selected",
+                        `${step.dist.toFixed(1)} km`,
+                        `Greedily picked unvisited node "${nName}" with lowest distance (${step.dist.toFixed(1)} km). Exploring adjacent roads...`
+                    );
+                } else if (step.type === 'relax_edge') {
+                    let uName = rawNodes.find(n => n.id === step.u).label;
+                    let vName = rawNodes.find(n => n.id === step.v).label;
+
+                    if (step.relaxed) {
+                        edges.update({
+                            id: step.edge.id,
+                            color: { color: RELAXING_EDGE_COLOR },
+                            width: HIGHLIGHT_WIDTH
+                        });
+
+                        nodes.update({
+                            id: step.v,
+                            label: `${vName}\n[${step.newDist.toFixed(1)} km]`,
+                            color: { background: VISITED_NODE_BG, border: VISITED_NODE_BORDER, borderWidth: 2 }
+                        });
+
+                        showResult(
+                            "Dijkstra: Edge Relaxed",
+                            `${step.newDist.toFixed(1)} km`,
+                            `Relaxation on road ${uName} ➜ ${vName} (${step.edge.weight} km): Updated distance from ∞ / ${step.oldDist === Infinity ? '∞' : step.oldDist.toFixed(1)} km down to ${step.newDist.toFixed(1)} km.`
+                        );
+                    } else {
+                        showResult(
+                            "Dijkstra: Edge Checked",
+                            `${step.newDist.toFixed(1)} km`,
+                            `Road ${uName} ➜ ${vName}: Existing distance is already shorter than ${step.newDist.toFixed(1)} km. No update needed.`
+                        );
+                    }
+                }
+
+                stepIdx++;
+            }, 750);
         }
 
-        // Disjoint Set Union (Union-Find) for cycle detection
+        // ================= MST ANIMATION =================
         class UnionFind {
             constructor(elements) {
                 this.parent = {};
@@ -349,30 +479,17 @@
             }
         }
 
-        // Orchestrates the algorithm selection and animation process
         function startMSTAnimation() {
             resetGraph();
             const algo = document.getElementById('mst-algo').value;
-            let steps = [];
-            let title = "";
-
-            if (algo === 'kruskal') {
-                steps = getKruskalSteps();
-                title = "Optimal CNG Network (Kruskal's MST)";
-            } else {
-                steps = getPrimSteps();
-                title = "Optimal CNG Network (Prim's MST)";
-            }
-
+            let steps = algo === 'kruskal' ? getKruskalSteps() : getPrimSteps();
+            let title = algo === 'kruskal' ? "Optimal CNG Network (Kruskal's MST)" : "Optimal CNG Network (Prim's MST)";
             animateMST(steps, title);
         }
 
-        // Kruskal's Logic: Returns edges in the order they should be added
         function getKruskalSteps() {
             let sortedEdges = [...rawEdges].sort((a, b) => a.weight - b.weight);
-            let nodeIds = rawNodes.map(n => n.id);
-            let uf = new UnionFind(nodeIds);
-            
+            let uf = new UnionFind(rawNodes.map(n => n.id));
             let mstSteps = [];
             for (let edge of sortedEdges) {
                 if (uf.union(edge.from, edge.to)) {
@@ -383,30 +500,24 @@
             return mstSteps;
         }
 
-        // Prim's Logic: Returns edges in the order they should be added
         function getPrimSteps() {
             let mstSteps = [];
-            let visited = new Set();
-            visited.add(0); // Start arbitrarily from Node 0 (Rupsha Ferry Ghat)
-            
+            let visited = new Set([0]);
             let unvisited = new Set(rawNodes.map(n => n.id));
             unvisited.delete(0);
-            
+
             while(unvisited.size > 0) {
                 let minEdge = null;
-                // Find shortest edge crossing the cut from visited to unvisited
                 for (let edge of rawEdges) {
                     let hasFrom = visited.has(edge.from);
                     let hasTo = visited.has(edge.to);
-                    
-                    if (hasFrom !== hasTo) { // Exactly one node is in visited
+                    if (hasFrom !== hasTo) {
                         if (!minEdge || edge.weight < minEdge.weight) {
                             minEdge = edge;
                         }
                     }
                 }
-                if (!minEdge) break; // Safety check for disconnected graphs
-                
+                if (!minEdge) break;
                 mstSteps.push(minEdge);
                 visited.add(minEdge.from);
                 visited.add(minEdge.to);
@@ -416,20 +527,17 @@
             return mstSteps;
         }
 
-        // Animates the MST generation step-by-step
         function animateMST(steps, title) {
-            // Disable control buttons during animation
             document.getElementById('btn-shortest-path').disabled = true;
             document.getElementById('btn-mst').disabled = true;
             
             let currentStep = 0;
-            let totalInfrastructureCost = 0;
-            
-            showResult(title, "0.0 km", "Initializing algorithm animation...");
+            let totalCost = 0;
+
+            showResult(title, "0.0 km", "Initializing Minimum Spanning Tree algorithm...");
 
             animationInterval = setInterval(() => {
                 if (currentStep >= steps.length) {
-                    // Animation complete
                     clearInterval(animationInterval);
                     animationInterval = null;
                     document.getElementById('btn-shortest-path').disabled = false;
@@ -437,40 +545,37 @@
                     
                     showResult(
                         title, 
-                        `${totalInfrastructureCost.toFixed(1)} km`, 
-                        "Network established! All locations connected optimally."
+                        `${totalCost.toFixed(1)} km`, 
+                        "Network established! All stands connected with zero redundant cycles."
                     );
                     return;
                 }
 
                 let edge = steps[currentStep];
-                totalInfrastructureCost += edge.weight;
+                totalCost += edge.weight;
 
-                // 1. Highlight the edge
                 edges.update({
                     id: edge.id,
                     color: { color: HIGHLIGHT_MST_COLOR },
                     width: HIGHLIGHT_WIDTH
                 });
 
-                // 2. Highlight the connected nodes
                 nodes.update([
                     { id: edge.from, color: { background: HIGHLIGHT_NODE_BG, border: HIGHLIGHT_NODE_BORDER, borderWidth: 3 } },
                     { id: edge.to, color: { background: HIGHLIGHT_NODE_BG, border: HIGHLIGHT_NODE_BORDER, borderWidth: 3 } }
                 ]);
 
-                // 3. Update status text
                 let fromLabel = rawNodes.find(n => n.id === edge.from).label;
                 let toLabel = rawNodes.find(n => n.id === edge.to).label;
 
                 showResult(
                     title, 
-                    `${totalInfrastructureCost.toFixed(1)} km`, 
-                    `Step ${currentStep + 1}: Connecting ${fromLabel} & ${toLabel} (+${edge.weight} km)`
+                    `${totalCost.toFixed(1)} km`, 
+                    `Step ${currentStep + 1}: Added ${fromLabel} ↔ ${toLabel} (+${edge.weight} km)`
                 );
 
                 currentStep++;
-            }, 800); // 800 milliseconds delay between steps
+            }, 800);
         }
     </script>
 </body>
