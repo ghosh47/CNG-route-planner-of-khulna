@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Khulna Route Optimizer & CNG Network</title>
+    <title>Khulna Load Shedding Zone Planner (MST + Edge Deletion)</title>
     
-    <!-- Tailwind CSS for UI styling -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Vis-Network for graph visualization -->
+    <!-- Vis-Network for interactive graph visualization -->
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     
     <!-- Google Fonts -->
@@ -16,129 +16,140 @@
     
     <style>
         body { font-family: 'Inter', sans-serif; }
-        #network-container { width: 100%; height: 100%; min-height: 500px; }
+        #network-container { width: 100%; height: 100%; min-height: 550px; }
         .vis-network:focus { outline: none; }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 h-screen flex flex-col md:flex-row overflow-hidden">
 
+    <!-- Sidebar Controls -->
     <aside class="w-full md:w-80 lg:w-96 bg-white shadow-xl flex flex-col z-10 p-6 overflow-y-auto">
-        <h1 class="text-2xl font-bold text-slate-900 mb-2">Khulna Network Optimizer</h1>
-        <p class="text-sm text-slate-500 mb-6">Find shortest routes and optimized infrastructure mapping.</p>
+        <div class="mb-5 border-b border-slate-200 pb-4">
+            <span class="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">CSE-215 Project</span>
+            <h1 class="text-xl font-bold text-slate-900 mt-2">Load Shedding Zone Planner</h1>
+            <p class="text-xs text-slate-500 mt-1">Single-Linkage Hierarchical Clustering via MST Edge Deletion.</p>
+        </div>
         
-        <div class="space-y-5">
-            <!-- Dijkstra Controls -->
-            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                <h2 class="text-lg font-semibold text-blue-900 mb-3">Fastest Route (Dijkstra)</h2>
-                <p class="text-xs text-blue-700 mb-3">Initializes all distances to &infin; and animates step-by-step edge relaxation.</p>
+        <div class="space-y-5 flex-1">
+            <!-- Step 1: MST Algorithm Selection -->
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-2 flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs">1</span>
+                    Construct MST
+                </h2>
+                <p class="text-xs text-slate-600 mb-3">Compute the Minimum Spanning Tree across all distribution hubs in Khulna.</p>
                 
-                <div class="flex flex-col gap-3 mb-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-blue-800 mb-1">Start Location</label>
-                        <select id="start-node" class="w-full p-2 border border-blue-200 rounded focus:ring focus:ring-blue-200 text-sm bg-white">
-                            <!-- Populated via JS -->
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-blue-800 mb-1">End Location</label>
-                        <select id="end-node" class="w-full p-2 border border-blue-200 rounded focus:ring focus:ring-blue-200 text-sm bg-white">
-                            <!-- Populated via JS -->
-                        </select>
-                    </div>
-                </div>
-                
-                <button id="btn-shortest-path" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors shadow-sm">
-                    Animate Dijkstra (Step-by-Step)
-                </button>
-            </div>
-
-            <!-- MST Controls -->
-            <div class="bg-green-50 p-4 rounded-xl border border-green-100">
-                <h2 class="text-lg font-semibold text-green-900 mb-3">CNG Network (MST)</h2>
-                <p class="text-xs text-green-700 mb-4">Calculate the most efficient way to connect all locations without redundant loops.</p>
-                
-                <div class="mb-4">
-                    <label class="block text-xs font-semibold text-green-800 mb-1">Algorithm</label>
-                    <select id="mst-algo" class="w-full p-2 border border-green-200 rounded focus:ring focus:ring-green-200 text-sm bg-white">
-                        <option value="kruskal">Kruskal's Algorithm</option>
-                        <option value="prim">Prim's Algorithm</option>
+                <div class="mb-3">
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">MST Algorithm</label>
+                    <select id="mst-algo" class="w-full p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500">
+                        <option value="kruskal">Kruskal's Algorithm (Global Edge Sort)</option>
+                        <option value="prim">Prim's Algorithm (Priority Cut)</option>
                     </select>
                 </div>
 
-                <button id="btn-mst" class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors shadow-sm">
-                    Establish Network
+                <button id="btn-build-mst" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors shadow-sm">
+                    Build Full MST
                 </button>
             </div>
 
-            <!-- General Controls -->
-            <div class="pt-2">
-                <button id="btn-reset" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium py-2 px-4 rounded-lg transition-colors">
-                    Reset Graph
+            <!-- Step 2: Interactive Edge Deletion -->
+            <div id="deletion-panel" class="bg-amber-50/70 p-4 rounded-xl border border-amber-200">
+                <h2 class="text-sm font-bold text-amber-900 uppercase tracking-wide mb-2 flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-xs">2</span>
+                    Cut Bottleneck Edges
+                </h2>
+                <p class="text-xs text-amber-800 mb-3">
+                    Deleting the <strong>k - 1</strong> heaviest MST edges yields <strong>k</strong> max-spacing clusters (single-linkage partition).
+                </p>
+
+                <div class="mb-3">
+                    <div class="flex justify-between items-center text-xs font-semibold text-amber-950 mb-1">
+                        <span>Edges to Delete (k - 1):</span>
+                        <span id="cuts-display" class="px-2 py-0.5 bg-amber-200 text-amber-900 rounded font-bold text-sm">0</span>
+                    </div>
+                    <input type="range" id="edge-cut-slider" min="0" max="11" value="0" disabled
+                           class="w-full h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-600 disabled:opacity-40">
+                </div>
+
+                <div class="flex items-center justify-between text-xs bg-white p-2 rounded-lg border border-amber-200">
+                    <span class="text-slate-600">Active Load Shedding Zones:</span>
+                    <span id="cluster-count-badge" class="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-sm">1 Zone</span>
+                </div>
+            </div>
+
+            <!-- General Reset -->
+            <div>
+                <button id="btn-reset" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium py-2 px-4 rounded-lg text-sm transition-colors">
+                    Reset Full Topology
                 </button>
             </div>
 
-            <!-- Live Distance Array Table (Collapsible) -->
-            <div id="distance-table-container" class="border border-slate-200 rounded-xl p-3 bg-slate-50 text-xs hidden">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="font-bold text-slate-700">Distance Array dist[v]</span>
-                    <span id="algo-badge" class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-medium text-[10px]">Dijkstra</span>
+            <!-- Summary / Metrics Box -->
+            <div id="result-box" class="p-4 bg-slate-900 text-white rounded-xl shadow-inner">
+                <div class="flex justify-between items-center mb-1">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400" id="result-title">System Status</h3>
+                    <span id="status-badge" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300">Unpartitioned</span>
                 </div>
-                <div class="grid grid-cols-2 gap-1.5 max-h-36 overflow-y-auto pr-1" id="distance-table-body">
-                    <!-- Populated dynamically -->
-                </div>
+                <p class="text-xl font-bold" id="result-value">Full Grid Topology</p>
+                <p class="text-xs text-slate-300 mt-2 leading-relaxed" id="result-details">
+                    Select an algorithm and click "Build Full MST" to establish minimum interconnectivity.
+                </p>
             </div>
 
-            <!-- Results Display -->
-            <div id="result-box" class="mt-2 p-4 bg-slate-900 text-white rounded-xl shadow-inner hidden">
-                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1" id="result-title">Result</h3>
-                <p class="text-2xl font-bold" id="result-value">0.0 km</p>
-                <p class="text-xs text-slate-300 mt-2 leading-relaxed" id="result-details"></p>
+            <!-- Cluster Legend / Zones Output -->
+            <div id="cluster-list-container" class="border border-slate-200 rounded-xl p-3 bg-slate-50 text-xs hidden">
+                <h4 class="font-bold text-slate-800 mb-2">Partitioned Zones (Clusters)</h4>
+                <div id="cluster-list" class="space-y-1.5 max-h-48 overflow-y-auto pr-1"></div>
             </div>
         </div>
     </aside>
 
+    <!-- Network Graph Canvas -->
     <main class="flex-1 relative bg-slate-50">
-        <!-- Container for the vis.js network graph -->
         <div id="network-container"></div>
         
-        <!-- Legend overlay -->
-        <div class="absolute bottom-6 right-6 bg-white/90 backdrop-blur px-4 py-3 rounded-lg shadow-lg text-sm border border-slate-200 pointer-events-none">
-            <h4 class="font-semibold mb-2 text-slate-700">Legend</h4>
-            <div class="flex items-center gap-2 mb-1">
-                <div class="w-6 h-1 bg-blue-300"></div> <span>Default Road</span>
+        <!-- Legend Overlay -->
+        <div class="absolute bottom-6 right-6 bg-white/95 backdrop-blur px-4 py-3 rounded-xl shadow-lg text-xs border border-slate-200 pointer-events-none">
+            <h4 class="font-bold mb-2 text-slate-800 uppercase tracking-wide text-[11px]">Visual Key</h4>
+            <div class="flex items-center gap-2 mb-1.5">
+                <div class="w-5 h-1 bg-slate-300"></div> 
+                <span class="text-slate-600">Non-MST Candidate Lines</span>
             </div>
-            <div class="flex items-center gap-2 mb-1">
-                <div class="w-6 h-1.5 bg-amber-500"></div> <span>Evaluating / Relaxing</span>
-            </div>
-            <div class="flex items-center gap-2 mb-1">
-                <div class="w-6 h-1.5 bg-red-500"></div> <span>Shortest Path</span>
+            <div class="flex items-center gap-2 mb-1.5">
+                <div class="w-5 h-1.5 bg-blue-500 rounded-sm"></div> 
+                <span class="text-slate-700 font-medium">Active Zone MST Edges</span>
             </div>
             <div class="flex items-center gap-2">
-                <div class="w-6 h-1.5 bg-green-500"></div> <span>MST Network</span>
+                <div class="w-5 h-1 border-t-2 border-dashed border-red-500"></div> 
+                <span class="text-red-600 font-medium">Deleted Heavy Cut Edges</span>
             </div>
         </div>
     </main>
 
     <script>
-        // Define standard styles for edges
-        const DEFAULT_EDGE_COLOR = '#93c5fd'; // Tailwind blue-300
-        const DEFAULT_EDGE_WIDTH = 2;
-        const HIGHLIGHT_PATH_COLOR = '#ef4444'; // Tailwind red-500
-        const HIGHLIGHT_MST_COLOR = '#22c55e'; // Tailwind green-500
-        const RELAXING_EDGE_COLOR = '#f59e0b'; // Tailwind amber-500
-        const HIGHLIGHT_WIDTH = 5;
+        // Graph Palette
+        const DEFAULT_EDGE_COLOR = '#cbd5e1'; 
+        const DEFAULT_EDGE_WIDTH = 1.5;
+        const MST_EDGE_WIDTH = 4;
+        const CUT_EDGE_COLOR = '#ef4444';
 
-        // Node highlight styles
-        const DEFAULT_NODE_BG = '#f8fafc';
-        const DEFAULT_NODE_BORDER = '#cbd5e1';
-        const HIGHLIGHT_NODE_BG = '#dcfce7'; // Tailwind green-100
-        const HIGHLIGHT_NODE_BORDER = '#22c55e'; // Tailwind green-500
-        const ACTIVE_NODE_BG = '#fef3c7'; // Tailwind amber-100
-        const ACTIVE_NODE_BORDER = '#f59e0b'; // Tailwind amber-500
-        const VISITED_NODE_BG = '#dbeafe'; // Tailwind blue-100
-        const VISITED_NODE_BORDER = '#3b82f6'; // Tailwind blue-500
+        // Vibrant distinct colors for resulting clusters
+        const CLUSTER_COLORS = [
+            { bg: '#dbeafe', border: '#2563eb', edge: '#3b82f6', text: 'Zone 1 (Blue)' },
+            { bg: '#dcfce7', border: '#16a34a', edge: '#22c55e', text: 'Zone 2 (Green)' },
+            { bg: '#ffedd5', border: '#ea580c', edge: '#f97316', text: 'Zone 3 (Orange)' },
+            { bg: '#f3e8ff', border: '#9333ea', edge: '#a855f7', text: 'Zone 4 (Purple)' },
+            { bg: '#fce7f3', border: '#db2777', edge: '#ec4899', text: 'Zone 5 (Pink)' },
+            { bg: '#ccfbf1', border: '#0d9488', edge: '#14b8a6', text: 'Zone 6 (Teal)' },
+            { bg: '#fef08a', border: '#ca8a04', edge: '#eab308', text: 'Zone 7 (Yellow)' },
+            { bg: '#e0e7ff', border: '#4f46e5', edge: '#6366f1', text: 'Zone 8 (Indigo)' },
+            { bg: '#fee2e2', border: '#dc2626', edge: '#ef4444', text: 'Zone 9 (Red)' },
+            { bg: '#cffafe', border: '#0891b2', edge: '#06b6d4', text: 'Zone 10 (Cyan)' },
+            { bg: '#f1f5f9', border: '#475569', edge: '#64748b', text: 'Zone 11 (Slate)' },
+            { bg: '#fae8ff', border: '#c026d3', edge: '#d946ef', text: 'Zone 12 (Fuchsia)' }
+        ];
 
-        // Raw Graph Data
+        // Khulna Distribution Network Nodes
         const rawNodes = [
             { id: 0, label: "Rupsha Ferry Ghat" },
             { id: 1, label: "Khulna Court" },
@@ -154,6 +165,7 @@
             { id: 11, label: "Shiromoni" }
         ];
 
+        // Khulna Distribution Network Edges (Geographical Distance in km)
         const rawEdges = [
             { id: 'e1', from: 0, to: 1, weight: 2.5, label: "2.5 km" },
             { id: 'e2', from: 1, to: 2, weight: 0.8, label: "0.8 km" },
@@ -173,292 +185,16 @@
             { id: 'e16', from: 10, to: 11, weight: 5.5, label: "5.5 km" }
         ];
 
-        // Prepare vis-network DataSets
-        const nodes = new vis.DataSet(rawNodes.map(n => ({
-            ...n, 
-            shape: 'dot',
-            size: 16,
-            font: { size: 14, face: 'Inter', bold: true, color: '#1e293b' },
-            color: { background: DEFAULT_NODE_BG, border: DEFAULT_NODE_BORDER, borderWidth: 2 }
-        })));
-
-        const edges = new vis.DataSet(rawEdges.map(e => ({
-            ...e,
-            font: { align: 'top', size: 12, color: '#475569', strokeWidth: 3, strokeColor: '#ffffff' },
-            color: { color: DEFAULT_EDGE_COLOR },
-            width: DEFAULT_EDGE_WIDTH
-        })));
-
+        // Vis.js DataSets
+        const nodes = new vis.DataSet();
+        const edges = new vis.DataSet();
         let network = null;
-        let animationInterval = null;
 
-        window.onload = function() {
-            const startSelect = document.getElementById('start-node');
-            const endSelect = document.getElementById('end-node');
-            
-            rawNodes.forEach(node => {
-                let option1 = new Option(node.label, node.id);
-                let option2 = new Option(node.label, node.id);
-                startSelect.add(option1);
-                endSelect.add(option2);
-            });
-            
-            endSelect.value = "11"; // Default to Shiromoni
+        // MST & Deletion State
+        let currentMstEdges = []; // Full V-1 edges in the MST
+        let sortedMstEdgesDesc = []; // Edges sorted by weight descending for cutting
 
-            const container = document.getElementById('network-container');
-            const data = { nodes: nodes, edges: edges };
-            const options = {
-                physics: {
-                    solver: 'forceAtlas2Based',
-                    forceAtlas2Based: {
-                        gravitationalConstant: -100,
-                        centralGravity: 0.01,
-                        springLength: 150,
-                        springConstant: 0.08
-                    }
-                },
-                interaction: { hover: true, tooltipDelay: 200 }
-            };
-            
-            network = new vis.Network(container, data, options);
-            
-            document.getElementById('btn-reset').addEventListener('click', resetGraph);
-            document.getElementById('btn-shortest-path').addEventListener('click', startDijkstraAnimation);
-            document.getElementById('btn-mst').addEventListener('click', startMSTAnimation);
-        };
-
-        function resetGraph() {
-            if (animationInterval) {
-                clearInterval(animationInterval);
-                animationInterval = null;
-            }
-
-            document.getElementById('btn-shortest-path').disabled = false;
-            document.getElementById('btn-mst').disabled = false;
-            document.getElementById('btn-reset').disabled = false;
-
-            // Reset edge styles
-            edges.update(rawEdges.map(e => ({
-                id: e.id, 
-                color: { color: DEFAULT_EDGE_COLOR }, 
-                width: DEFAULT_EDGE_WIDTH
-            })));
-            
-            // Reset node styles & clear distance tags
-            nodes.update(rawNodes.map(n => ({
-                id: n.id,
-                label: n.label,
-                color: { background: DEFAULT_NODE_BG, border: DEFAULT_NODE_BORDER, borderWidth: 2 }
-            })));
-            
-            document.getElementById('result-box').classList.add('hidden');
-            document.getElementById('distance-table-container').classList.add('hidden');
-        }
-
-        function showResult(title, distanceStr, details) {
-            document.getElementById('result-title').innerText = title;
-            document.getElementById('result-value').innerText = distanceStr;
-            document.getElementById('result-details').innerText = details;
-            document.getElementById('result-box').classList.remove('hidden');
-        }
-
-        function updateDistanceTable(distances) {
-            const tableBody = document.getElementById('distance-table-body');
-            tableBody.innerHTML = '';
-            rawNodes.forEach(node => {
-                const distVal = distances[node.id] === Infinity ? '∞' : `${distances[node.id].toFixed(1)} km`;
-                const isInf = distances[node.id] === Infinity;
-                const row = document.createElement('div');
-                row.className = `flex justify-between items-center p-1 rounded ${isInf ? 'text-slate-400 bg-white' : 'text-blue-900 bg-blue-100/70 font-semibold'}`;
-                row.innerHTML = `<span class="truncate pr-1">${node.label}</span><span>${distVal}</span>`;
-                tableBody.appendChild(row);
-            });
-        }
-
-        // ================= DIJKSTRA STEP-BY-STEP ANIMATION =================
-        function startDijkstraAnimation() {
-            resetGraph();
-            const startId = parseInt(document.getElementById('start-node').value);
-            const endId = parseInt(document.getElementById('end-node').value);
-
-            if (startId === endId) {
-                showResult("Shortest Path", "0.0 km", "Start and end locations are the same.");
-                return;
-            }
-
-            // Reveal distance table
-            document.getElementById('distance-table-container').classList.remove('hidden');
-
-            // 1. Initial State: All distances = Infinity, start = 0
-            let distances = {};
-            let previous = {};
-            let unvisited = new Set();
-
-            rawNodes.forEach(node => {
-                distances[node.id] = Infinity;
-                previous[node.id] = null;
-                unvisited.add(node.id);
-            });
-            distances[startId] = 0;
-
-            // Show initial ∞ on all nodes
-            nodes.update(rawNodes.map(n => ({
-                id: n.id,
-                label: n.id === startId ? `${n.label}\n[0.0 km]` : `${n.label}\n[∞]`
-            })));
-            updateDistanceTable(distances);
-
-            // Pre-calculate visual animation steps
-            let steps = [];
-            let unvisitedCopy = new Set(unvisited);
-            let distCopy = { ...distances };
-            let prevCopy = { ...previous };
-
-            while (unvisitedCopy.size > 0) {
-                let minNode = null;
-                for (let nodeId of unvisitedCopy) {
-                    if (minNode === null || distCopy[nodeId] < distCopy[minNode]) {
-                        minNode = nodeId;
-                    }
-                }
-
-                if (distCopy[minNode] === Infinity) break;
-
-                steps.push({
-                    type: 'visit_node',
-                    node: minNode,
-                    dist: distCopy[minNode],
-                    distancesSnapshot: { ...distCopy }
-                });
-
-                if (minNode === endId) break;
-                unvisitedCopy.delete(minNode);
-
-                let neighbors = rawEdges.filter(e => e.from === minNode || e.to === minNode);
-                for (let edge of neighbors) {
-                    let neighborId = edge.from === minNode ? edge.to : edge.from;
-                    if (unvisitedCopy.has(neighborId)) {
-                        let alt = parseFloat((distCopy[minNode] + edge.weight).toFixed(2));
-                        let didRelax = alt < distCopy[neighborId];
-                        
-                        if (didRelax) {
-                            distCopy[neighborId] = alt;
-                            prevCopy[neighborId] = { node: minNode, edgeId: edge.id };
-                        }
-
-                        steps.push({
-                            type: 'relax_edge',
-                            u: minNode,
-                            v: neighborId,
-                            edge: edge,
-                            oldDist: didRelax ? (alt === distCopy[neighborId] ? Infinity : distCopy[neighborId]) : distCopy[neighborId],
-                            newDist: alt,
-                            relaxed: didRelax,
-                            distancesSnapshot: { ...distCopy }
-                        });
-                    }
-                }
-            }
-
-            // Extract final path
-            let pathEdges = [];
-            let curr = endId;
-            while (prevCopy[curr]) {
-                pathEdges.push(prevCopy[curr].edgeId);
-                curr = prevCopy[curr].node;
-            }
-
-            // Disable buttons during animation
-            document.getElementById('btn-shortest-path').disabled = true;
-            document.getElementById('btn-mst').disabled = true;
-
-            showResult(
-                "Dijkstra's Algorithm",
-                "0.0 km",
-                `Initialized: All nodes set to distance ∞. Source [${rawNodes.find(n => n.id === startId).label}] set to 0.0 km.`
-            );
-
-            let stepIdx = 0;
-            animationInterval = setInterval(() => {
-                if (stepIdx >= steps.length) {
-                    clearInterval(animationInterval);
-                    animationInterval = null;
-
-                    // Finalize: Highlight shortest path in RED
-                    edges.update(pathEdges.map(id => ({
-                        id: id,
-                        color: { color: HIGHLIGHT_PATH_COLOR },
-                        width: HIGHLIGHT_WIDTH
-                    })));
-
-                    nodes.update([
-                        { id: startId, color: { background: '#fee2e2', border: HIGHLIGHT_PATH_COLOR, borderWidth: 3 } },
-                        { id: endId, color: { background: '#fee2e2', border: HIGHLIGHT_PATH_COLOR, borderWidth: 3 } }
-                    ]);
-
-                    document.getElementById('btn-shortest-path').disabled = false;
-                    document.getElementById('btn-mst').disabled = false;
-
-                    let totalDist = distCopy[endId] !== Infinity ? `${distCopy[endId].toFixed(1)} km` : "--";
-                    showResult(
-                        "Dijkstra's Shortest Path",
-                        totalDist,
-                        `Optimal path reached! Total distance from ${rawNodes.find(n => n.id === startId).label} to ${rawNodes.find(n => n.id === endId).label} is ${totalDist}.`
-                    );
-                    return;
-                }
-
-                let step = steps[stepIdx];
-                updateDistanceTable(step.distancesSnapshot);
-
-                if (step.type === 'visit_node') {
-                    let nName = rawNodes.find(n => n.id === step.node).label;
-                    nodes.update({
-                        id: step.node,
-                        label: `${nName}\n[${step.dist.toFixed(1)} km]`,
-                        color: { background: ACTIVE_NODE_BG, border: ACTIVE_NODE_BORDER, borderWidth: 3 }
-                    });
-                    showResult(
-                        "Dijkstra: Node Selected",
-                        `${step.dist.toFixed(1)} km`,
-                        `Greedily picked unvisited node "${nName}" with lowest distance (${step.dist.toFixed(1)} km). Exploring adjacent roads...`
-                    );
-                } else if (step.type === 'relax_edge') {
-                    let uName = rawNodes.find(n => n.id === step.u).label;
-                    let vName = rawNodes.find(n => n.id === step.v).label;
-
-                    if (step.relaxed) {
-                        edges.update({
-                            id: step.edge.id,
-                            color: { color: RELAXING_EDGE_COLOR },
-                            width: HIGHLIGHT_WIDTH
-                        });
-
-                        nodes.update({
-                            id: step.v,
-                            label: `${vName}\n[${step.newDist.toFixed(1)} km]`,
-                            color: { background: VISITED_NODE_BG, border: VISITED_NODE_BORDER, borderWidth: 2 }
-                        });
-
-                        showResult(
-                            "Dijkstra: Edge Relaxed",
-                            `${step.newDist.toFixed(1)} km`,
-                            `Relaxation on road ${uName} ➜ ${vName} (${step.edge.weight} km): Updated distance from ∞ / ${step.oldDist === Infinity ? '∞' : step.oldDist.toFixed(1)} km down to ${step.newDist.toFixed(1)} km.`
-                        );
-                    } else {
-                        showResult(
-                            "Dijkstra: Edge Checked",
-                            `${step.newDist.toFixed(1)} km`,
-                            `Road ${uName} ➜ ${vName}: Existing distance is already shorter than ${step.newDist.toFixed(1)} km. No update needed.`
-                        );
-                    }
-                }
-
-                stepIdx++;
-            }, 750);
-        }
-
-        // ================= MST ANIMATION =================
+        // Union-Find implementation for Kruskal's
         class UnionFind {
             constructor(elements) {
                 this.parent = {};
@@ -479,34 +215,127 @@
             }
         }
 
-        function startMSTAnimation() {
-            resetGraph();
+        window.onload = function() {
+            initGraph();
+
+            document.getElementById('btn-build-mst').addEventListener('click', computeMST);
+            document.getElementById('edge-cut-slider').addEventListener('input', handleEdgeCut);
+            document.getElementById('btn-reset').addEventListener('click', resetGraph);
+        };
+
+        function initGraph() {
+            nodes.clear();
+            edges.clear();
+
+            nodes.add(rawNodes.map(n => ({
+                id: n.id,
+                label: n.label,
+                shape: 'dot',
+                size: 16,
+                font: { size: 13, face: 'Inter', bold: true, color: '#1e293b' },
+                color: { background: '#ffffff', border: '#94a3b8', borderWidth: 2 }
+            })));
+
+            edges.add(rawEdges.map(e => ({
+                id: e.id,
+                from: e.from,
+                to: e.to,
+                weight: e.weight,
+                label: `${e.weight} km`,
+                font: { align: 'top', size: 11, color: '#64748b', strokeWidth: 3, strokeColor: '#ffffff' },
+                color: { color: DEFAULT_EDGE_COLOR },
+                width: DEFAULT_EDGE_WIDTH,
+                dashes: false
+            })));
+
+            const container = document.getElementById('network-container');
+            const data = { nodes, edges };
+            const options = {
+                physics: {
+                    solver: 'forceAtlas2Based',
+                    forceAtlas2Based: {
+                        gravitationalConstant: -110,
+                        centralGravity: 0.015,
+                        springLength: 140,
+                        springConstant: 0.08
+                    }
+                },
+                interaction: { hover: true, tooltipDelay: 200 }
+            };
+
+            network = new vis.Network(container, data, options);
+        }
+
+        function resetGraph() {
+            currentMstEdges = [];
+            sortedMstEdgesDesc = [];
+
+            const slider = document.getElementById('edge-cut-slider');
+            slider.value = 0;
+            slider.disabled = true;
+            document.getElementById('cuts-display').innerText = '0';
+            document.getElementById('cluster-count-badge').innerText = '1 Zone';
+            document.getElementById('cluster-list-container').classList.add('hidden');
+            document.getElementById('status-badge').innerText = 'Unpartitioned';
+            document.getElementById('status-badge').className = 'text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300';
+
+            initGraph();
+
+            document.getElementById('result-title').innerText = "System Status";
+            document.getElementById('result-value').innerText = "Full Grid Topology";
+            document.getElementById('result-details').innerText = 'Select an algorithm and click "Build Full MST" to establish minimum interconnectivity.';
+        }
+
+        // ================= MST CALCULATION =================
+        function computeMST() {
             const algo = document.getElementById('mst-algo').value;
-            let steps = algo === 'kruskal' ? getKruskalSteps() : getPrimSteps();
-            let title = algo === 'kruskal' ? "Optimal CNG Network (Kruskal's MST)" : "Optimal CNG Network (Prim's MST)";
-            animateMST(steps, title);
-        }
+            let mst = [];
 
-        function getKruskalSteps() {
-            let sortedEdges = [...rawEdges].sort((a, b) => a.weight - b.weight);
-            let uf = new UnionFind(rawNodes.map(n => n.id));
-            let mstSteps = [];
-            for (let edge of sortedEdges) {
-                if (uf.union(edge.from, edge.to)) {
-                    mstSteps.push(edge);
-                }
-                if (mstSteps.length === rawNodes.length - 1) break;
+            if (algo === 'kruskal') {
+                mst = runKruskal();
+            } else {
+                mst = runPrim();
             }
-            return mstSteps;
+
+            currentMstEdges = [...mst];
+            // Sort MST edges descending so cut 0 = heaviest edge, cut 1 = 2nd heaviest, etc.
+            sortedMstEdgesDesc = [...currentMstEdges].sort((a, b) => b.weight - a.weight);
+
+            // Enable slider
+            const slider = document.getElementById('edge-cut-slider');
+            slider.max = currentMstEdges.length; // Can cut up to V-1 edges
+            slider.value = 0;
+            slider.disabled = false;
+            document.getElementById('cuts-display').innerText = '0';
+
+            document.getElementById('status-badge').innerText = 'MST Constructed';
+            document.getElementById('status-badge').className = 'text-[10px] px-2 py-0.5 rounded bg-green-900 text-green-300';
+
+            // Apply 0 cuts (render full MST)
+            applyEdgeCuts(0);
         }
 
-        function getPrimSteps() {
-            let mstSteps = [];
+        function runKruskal() {
+            let sorted = [...rawEdges].sort((a, b) => a.weight - b.weight);
+            let uf = new UnionFind(rawNodes.map(n => n.id));
+            let mst = [];
+
+            for (let edge of sorted) {
+                if (uf.union(edge.from, edge.to)) {
+                    mst.push(edge);
+                }
+                if (mst.length === rawNodes.length - 1) break;
+            }
+            return mst;
+        }
+
+        function runPrim() {
+            let mst = [];
             let visited = new Set([0]);
             let unvisited = new Set(rawNodes.map(n => n.id));
             unvisited.delete(0);
 
-            while(unvisited.size > 0) {
+            while (unvisited.size > 0) {
                 let minEdge = null;
                 for (let edge of rawEdges) {
                     let hasFrom = visited.has(edge.from);
@@ -518,64 +347,174 @@
                     }
                 }
                 if (!minEdge) break;
-                mstSteps.push(minEdge);
+                mst.push(minEdge);
                 visited.add(minEdge.from);
                 visited.add(minEdge.to);
                 unvisited.delete(minEdge.from);
                 unvisited.delete(minEdge.to);
             }
-            return mstSteps;
+            return mst;
         }
 
-        function animateMST(steps, title) {
-            document.getElementById('btn-shortest-path').disabled = true;
-            document.getElementById('btn-mst').disabled = true;
-            
-            let currentStep = 0;
-            let totalCost = 0;
+        // ================= EDGE DELETION & CLUSTERING =================
+        function handleEdgeCut(event) {
+            const cutCount = parseInt(event.target.value);
+            document.getElementById('cuts-display').innerText = cutCount;
+            applyEdgeCuts(cutCount);
+        }
 
-            showResult(title, "0.0 km", "Initializing Minimum Spanning Tree algorithm...");
+        function applyEdgeCuts(cutCount) {
+            const deletedEdges = sortedMstEdgesDesc.slice(0, cutCount);
+            const remainingMstEdges = sortedMstEdgesDesc.slice(cutCount);
 
-            animationInterval = setInterval(() => {
-                if (currentStep >= steps.length) {
-                    clearInterval(animationInterval);
-                    animationInterval = null;
-                    document.getElementById('btn-shortest-path').disabled = false;
-                    document.getElementById('btn-mst').disabled = false;
-                    
-                    showResult(
-                        title, 
-                        `${totalCost.toFixed(1)} km`, 
-                        "Network established! All stands connected with zero redundant cycles."
-                    );
-                    return;
-                }
+            const deletedEdgeIds = new Set(deletedEdges.map(e => e.id));
+            const remainingMstEdgeIds = new Set(remainingMstEdges.map(e => e.id));
 
-                let edge = steps[currentStep];
-                totalCost += edge.weight;
+            // Find connected components (clusters) using BFS over surviving MST edges
+            const clusters = computeClusters(remainingMstEdges);
+            const clusterCount = clusters.length;
 
-                edges.update({
-                    id: edge.id,
-                    color: { color: HIGHLIGHT_MST_COLOR },
-                    width: HIGHLIGHT_WIDTH
+            document.getElementById('cluster-count-badge').innerText = `${clusterCount} Zone${clusterCount > 1 ? 's' : ''}`;
+
+            // Map each node to its cluster index
+            const nodeToClusterIndex = {};
+            clusters.forEach((clusterNodes, idx) => {
+                clusterNodes.forEach(nodeId => {
+                    nodeToClusterIndex[nodeId] = idx;
                 });
+            });
 
-                nodes.update([
-                    { id: edge.from, color: { background: HIGHLIGHT_NODE_BG, border: HIGHLIGHT_NODE_BORDER, borderWidth: 3 } },
-                    { id: edge.to, color: { background: HIGHLIGHT_NODE_BG, border: HIGHLIGHT_NODE_BORDER, borderWidth: 3 } }
-                ]);
+            // 1. Update Nodes with Cluster-Specific Styling
+            nodes.update(rawNodes.map(n => {
+                const cIdx = nodeToClusterIndex[n.id] % CLUSTER_COLORS.length;
+                const palette = CLUSTER_COLORS[cIdx];
+                return {
+                    id: n.id,
+                    label: `${n.label}\n[Zone ${cIdx + 1}]`,
+                    color: {
+                        background: palette.bg,
+                        border: palette.border,
+                        borderWidth: 3
+                    }
+                };
+            }));
 
-                let fromLabel = rawNodes.find(n => n.id === edge.from).label;
-                let toLabel = rawNodes.find(n => n.id === edge.to).label;
+            // 2. Update Edges:
+            // - Active MST edges: Cluster color
+            // - Cut edges: Dashed red
+            // - Non-MST edges: Faded grey
+            edges.update(rawEdges.map(e => {
+                if (deletedEdgeIds.has(e.id)) {
+                    return {
+                        id: e.id,
+                        color: { color: CUT_EDGE_COLOR },
+                        width: MST_EDGE_WIDTH,
+                        dashes: [6, 4]
+                    };
+                } else if (remainingMstEdgeIds.has(e.id)) {
+                    const cIdx = nodeToClusterIndex[e.from] % CLUSTER_COLORS.length;
+                    return {
+                        id: e.id,
+                        color: { color: CLUSTER_COLORS[cIdx].edge },
+                        width: MST_EDGE_WIDTH,
+                        dashes: false
+                    };
+                } else {
+                    return {
+                        id: e.id,
+                        color: { color: DEFAULT_EDGE_COLOR },
+                        width: DEFAULT_EDGE_WIDTH,
+                        dashes: false
+                    };
+                }
+            }));
 
-                showResult(
-                    title, 
-                    `${totalCost.toFixed(1)} km`, 
-                    `Step ${currentStep + 1}: Added ${fromLabel} ↔ ${toLabel} (+${edge.weight} km)`
-                );
+            // 3. Update Results Box & Clusters List
+            const totalRemainingDistance = remainingMstEdges.reduce((sum, e) => sum + e.weight, 0);
+            const totalCutDistance = deletedEdges.reduce((sum, e) => sum + e.weight, 0);
 
-                currentStep++;
-            }, 800);
+            document.getElementById('result-title').innerText = `Max-Spacing Clustering (k = ${clusterCount})`;
+            document.getElementById('result-value').innerText = `${totalRemainingDistance.toFixed(1)} km Active`;
+            
+            let details = `MST severed across ${cutCount} bottleneck line(s) totaling ${totalCutDistance.toFixed(1)} km. `;
+            if (cutCount > 0) {
+                const bottleneck = deletedEdges[deletedEdges.length - 1];
+                details += `Max-Spacing threshold: ${bottleneck.weight.toFixed(1)} km (${rawNodes.find(n => n.id === bottleneck.from).label} ↔ ${rawNodes.find(n => n.id === bottleneck.to).label}).`;
+            } else {
+                details += "Full Minimum Spanning Tree with all 12 substations unified.";
+            }
+            document.getElementById('result-details').innerText = details;
+
+            renderClusterList(clusters, remainingMstEdges);
+        }
+
+        function computeClusters(activeEdges) {
+            const adj = {};
+            rawNodes.forEach(n => adj[n.id] = []);
+
+            activeEdges.forEach(e => {
+                adj[e.from].push(e.to);
+                adj[e.to].push(e.from);
+            });
+
+            const visited = new Set();
+            const clusters = [];
+
+            rawNodes.forEach(n => {
+                if (!visited.has(n.id)) {
+                    const cluster = [];
+                    const queue = [n.id];
+                    visited.add(n.id);
+
+                    while (queue.length > 0) {
+                        const curr = queue.shift();
+                        cluster.push(curr);
+
+                        adj[curr].forEach(neighbor => {
+                            if (!visited.has(neighbor)) {
+                                visited.add(neighbor);
+                                queue.push(neighbor);
+                            }
+                        });
+                    }
+                    clusters.push(cluster);
+                }
+            });
+
+            return clusters;
+        }
+
+        function renderClusterList(clusters, remainingEdges) {
+            const container = document.getElementById('cluster-list-container');
+            const list = document.getElementById('cluster-list');
+            list.innerHTML = '';
+
+            clusters.forEach((nodeIds, idx) => {
+                const palette = CLUSTER_COLORS[idx % CLUSTER_COLORS.length];
+                const nodeNames = nodeIds.map(id => rawNodes.find(n => n.id === id).label).join(', ');
+                
+                // Calculate internal zone distance
+                const internalDistance = remainingEdges
+                    .filter(e => nodeIds.includes(e.from) && nodeIds.includes(e.to))
+                    .reduce((sum, e) => sum + e.weight, 0);
+
+                const item = document.createElement('div');
+                item.className = 'p-2 rounded-lg border bg-white flex flex-col gap-1';
+                item.style.borderColor = palette.border;
+
+                item.innerHTML = `
+                    <div class="flex justify-between items-center font-bold" style="color: ${palette.border}">
+                        <span>Zone ${idx + 1} (${nodeIds.length} Substations)</span>
+                        <span class="text-[11px] font-semibold text-slate-500">${internalDistance.toFixed(1)} km</span>
+                    </div>
+                    <div class="text-[11px] text-slate-600 truncate" title="${nodeNames}">
+                        ${nodeNames}
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+
+            container.classList.remove('hidden');
         }
     </script>
 </body>
